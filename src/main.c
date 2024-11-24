@@ -53,12 +53,6 @@ LRESULT window_proc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
             EndPaint(hwnd, &ps);
             return 0;
         }
-
-        case WM_SETCURSOR: {
-            // Set the cursor to a normal arrow
-            SetCursor(LoadCursor(NULL, IDC_ARROW));
-            return TRUE;
-        }
     }
     return DefWindowProcA(hwnd, Msg, wParam, lParam);
 }
@@ -362,11 +356,6 @@ void randomizeCell(Cell* cell){
 void game(double deltaTime){
     drawRectangle(0,0,bitmapWidth, bitmapHeight, 0xFF181818);
 
-    // x += deltaTime*100;
-    // y += deltaTime*100*0.6;
-
-    // drawCell(x,y,64,64,0xFFFF0000);
-
     for(uint64_t i = 0; i < NUMBER_OF_CELLS; i++){
         Cell* cell = cells + i;
 
@@ -374,7 +363,6 @@ void game(double deltaTime){
         cell->y += cell->accy * deltaTime;
 
         cell->accy -= gravity * deltaTime;
-        // drawCell(cell->x - (double)CELL_SIZE / 2,cell->y - (double)CELL_SIZE / 2,CELL_SIZE,CELL_SIZE,cell->color);
         drawShape(cell->x - (double)CELL_SIZE / 2,cell->y - (double)CELL_SIZE / 2,cell->shape, cell->rotation);
 
         if(cell->x - (double)CELL_SIZE * 3 >= bitmapWidth || cell->x + (double)CELL_SIZE * 3 < 0 || cell->y - (double)CELL_SIZE * 3 >= bitmapHeight || cell->y + (double)CELL_SIZE * 3 < 0){
