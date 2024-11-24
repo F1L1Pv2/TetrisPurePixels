@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Game",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/tetris.exe",
+            "args": [],
+            "cwd": "${workspaceRoot}",
+            "console": "integratedTerminal"
+        },
+    ]
+}
