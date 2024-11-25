@@ -59,6 +59,20 @@ int mouse_y;
 #define PLAYFIELD_COLS 10
 #define PLAYFIELD_ROWS 16
 const double gravity = -9.8 * 10.0;
+double fallSpeed = 2.0;
+bool outOfBounds = false;
+
+typedef enum {
+    SHAPE_NONE = 0,
+    SHAPE_Z,
+    SHAPE_S,
+    SHAPE_L_R,
+    SHAPE_L,
+    SHAPE_T,
+    SHAPE_Block,
+    SHAPE_I,
+    SHAPES_COUNT,
+} SHAPE;
 
 typedef struct{
     double x;
@@ -72,17 +86,6 @@ typedef struct{
 Cell cells[NUMBER_OF_CELLS] = {0};
 uint8_t PLAYFIELD[PLAYFIELD_COLS * PLAYFIELD_ROWS] = {0};
 
-typedef enum {
-    SHAPE_NONE = 0,
-    SHAPE_Z,
-    SHAPE_S,
-    SHAPE_L_R,
-    SHAPE_L,
-    SHAPE_T,
-    SHAPE_Block,
-    SHAPE_I,
-    SHAPES_COUNT,
-} SHAPE;
 
 
 const uint16_t shapeEncoders[] = {
@@ -385,11 +388,93 @@ uint32_t multiply_rgb(uint32_t argb, uint8_t multiplier) {
     return (alpha << 24) | (red << 16) | (green << 8) | blue;
 }
 
-void drawShape(double x, double y, SHAPE shape, int rotation, uint8_t lightness) {
-    uint32_t color = multiply_rgb(colors[shape], lightness);
+bool checkCellHorWall(int x, int y){
+    return x < 0 || x >=PLAYFIELD_COLS;
+}
+
+bool checkCellVerWall(int x, int y){
+    return y >= PLAYFIELD_ROWS;
+}
+
+bool checkCellTouchingWall(int x, int y){
+    return checkCellHorWall(x, y) || checkCellVerWall(x,y);
+}
+
+bool checkCell(int x, int y, bool vertical){
+    return (vertical ? checkCellVerWall(x,y) : checkCellHorWall(x,y)) || (PLAYFIELD[y*PLAYFIELD_COLS + x] != 0);
+}
+
+bool shapeColide(int x, int y, SHAPE shape, int rotation, int moveDir){
+    // moveDir 0 is down
+    // moveDir 1 is right
+    // moveDir 2 is left
+    // up is useless in tetris
+
+    if (shape <= 0 || shape >= SHAPES_COUNT) return false; //invalid case
+    
+    rotation = rotation % 4;
+    
+    uint16_t shapeForm = shapeEncoders[7*rotation + (shape - 1)];
+
+    int offX = x;
+    int offY = y;
+
+    if(moveDir != -1){
+        offX += (moveDir == 0 ? 0 : moveDir == 1 ? 1 : -1);
+        offY += (moveDir == 0 ? 1 : 0);
+    }
+
+    bool touched = false;
+
+    if((shapeForm & 0b00000000001) != 0) touched |= checkCell(offX - 1, offY - 1, moveDir == 0);
+    if((shapeForm & 0b00000000010) != 0) touched |= checkCell(offX    , offY - 1, moveDir == 0);
+    if((shapeForm & 0b00000000100) != 0) touched |= checkCell(offX + 1, offY - 1, moveDir == 0);
+    if((shapeForm & 0b00000001000) != 0) touched |= checkCell(offX - 1, offY    , moveDir == 0);
+    if((shapeForm & 0b00000010000) != 0) touched |= checkCell(offX    , offY    , moveDir == 0);
+    if((shapeForm & 0b00000100000) != 0) touched |= checkCell(offX + 1, offY    , moveDir == 0);
+    if((shapeForm & 0b00001000000) != 0) touched |= checkCell(offX - 1, offY + 1, moveDir == 0);
+    if((shapeForm & 0b00010000000) != 0) touched |= checkCell(offX    , offY + 1, moveDir == 0);
+    if((shapeForm & 0b00100000000) != 0) touched |= checkCell(offX + 1, offY + 1, moveDir == 0);
+    if((shapeForm & 0b01000000000) != 0) touched |= checkCell(offX + 2, offY    , moveDir == 0);
+    if((shapeForm & 0b10000000000) != 0) touched |= checkCell(offX    , offY + 2, moveDir == 0);
+
+    return touched;
+}
+
+void setCell(int x, int y, uint8_t cellType){
+    if(y < 0) outOfBounds = true;
+    if(x < 0 || x >= PLAYFIELD_COLS || y < 0 || y >= PLAYFIELD_ROWS) return;
+
+    PLAYFIELD[y*PLAYFIELD_COLS + x] = cellType;
+}
+
+void placeShape(int x, int y, SHAPE shape, int rotation){
+    if(shape <= 0 || shape >= SHAPES_COUNT) return;
     rotation = rotation % 4;
 
-    if(shape == 0 || shape >= SHAPES_COUNT) {drawCell(x, y, CELL_SIZE, CELL_SIZE, color); return;}
+    uint16_t shapeForm = shapeEncoders[7*rotation + (shape - 1)];
+
+    if((shapeForm & 0b00000000001) != 0) setCell(x - 1,y - 1, shape);
+    if((shapeForm & 0b00000000010) != 0) setCell(x    ,y - 1, shape);
+    if((shapeForm & 0b00000000100) != 0) setCell(x + 1,y - 1, shape);
+
+    if((shapeForm & 0b00000001000) != 0) setCell(x - 1,y    , shape);
+    if((shapeForm & 0b00000010000) != 0) setCell(x    ,y    , shape);
+    if((shapeForm & 0b00000100000) != 0) setCell(x + 1,y    , shape);
+
+    if((shapeForm & 0b00001000000) != 0) setCell(x - 1,y + 1, shape);
+    if((shapeForm & 0b00010000000) != 0) setCell(x    ,y + 1, shape);
+    if((shapeForm & 0b00100000000) != 0) setCell(x + 1,y + 1, shape);
+
+    if((shapeForm & 0b01000000000) != 0) setCell(x + 2,y    , shape);
+    if((shapeForm & 0b10000000000) != 0) setCell(x    ,y + 2, shape);
+}
+
+void drawShape(double x, double y, SHAPE shape, int rotation, uint8_t lightness) {
+    uint32_t color = multiply_rgb(colors[shape], lightness);
+    if(shape <= 0 || shape >= SHAPES_COUNT) {drawCell(x, y, CELL_SIZE, CELL_SIZE, color); return;}
+    
+    rotation = rotation % 4;
 
     uint16_t shapeForm = shapeEncoders[7*rotation + (shape - 1)];
 
@@ -421,40 +506,89 @@ void randomizeCell(Cell* cell){
 
 double lightness = 0.8;
 
-int test_x = 0;
+int test_x = PLAYFIELD_COLS / 2;
 int test_y = 0;
 SHAPE shape = 1;
 int rotation = 0;
 
 float tick = 0.0;
 
-void game_tick(){
-    test_y++;
+#define MAX_PLACETIMER 2
+int placeTimer = 0;
+
+void update_block(){
+    if(placeTimer == 2) {
+        placeShape(test_x,test_y,shape,rotation);
+        test_x = PLAYFIELD_COLS / 2;
+        test_y = 0;
+        rotation = 0;
+        shape = (rand() % (SHAPES_COUNT - 1) ) + 1;
+
+        placeTimer = 0;
+        return;
+    }
+
+    if(!shapeColide(test_x,test_y,shape,rotation,0)){
+        test_y++;
+        placeTimer = 0;
+    }else{
+        placeTimer++;
+    }
+}
+
+void handleCol(){
+    bool moved = shapeColide(test_x,test_y,shape,rotation,0);
+    while(shapeColide(test_x,test_y,shape,rotation,0)) test_y--;
+    if(moved) test_y++;
+
+    moved = shapeColide(test_x,test_y,shape,rotation,1);
+    while(shapeColide(test_x,test_y,shape,rotation,1)) test_x--;
+    if(moved) test_x++;
+
+    moved = shapeColide(test_x,test_y,shape,rotation,2);
+    while(shapeColide(test_x,test_y,shape,rotation,2)) test_x++;
+    if(moved) test_x--;
 }
 
 void game(double deltaTime){
+    if(outOfBounds){
+        for(int i = 0; i < PLAYFIELD_COLS * PLAYFIELD_ROWS; i++){
+            PLAYFIELD[i] = 0;
+        }
+        outOfBounds = false;
+    }
+
     drawRectangle(0,0,bitmapWidth, bitmapHeight, 0xFF181818);
 
     lightness -= deltaTime / 10;
     if(lightness < 0.2) lightness = 0.2;
 
-    if(just_pressed_keys['D']) test_x++;
-    if(just_pressed_keys['A']) test_x--;
+    if(just_pressed_keys['D'] && !shapeColide(test_x,test_y,shape,rotation,1)) test_x++;
+    if(just_pressed_keys['A'] && !shapeColide(test_x,test_y,shape,rotation,2)) test_x--;
 
-    if(just_pressed_keys['W']) test_y--;
-    if(just_pressed_keys['S']) test_y++;
+    if(just_pressed_keys['E']) {
+        rotation = (rotation + 1) % 4;
+        handleCol();
+    }
 
-    if(just_pressed_keys['E']) rotation = (rotation + 1) % 4;
-    if(just_pressed_keys['Q']) rotation = (rotation - 1) > 0 ? (rotation - 1) : 4 + (rotation - 1);
+    if(just_pressed_keys['Q']) {
+        rotation = (rotation - 1) > 0 ? (rotation - 1) : 4 + (rotation - 1);
+        handleCol();
+    }
 
+    if(just_pressed_keys[VK_SPACE]) {
+        do {
+            update_block();
+        }while(test_y != 0);
+    }
     if(just_pressed_keys['1']) shape = (shape + 1) % 7;
     if(just_pressed_keys['2']) shape = (shape - 1) > 0 ? (shape - 1) : 7 + (shape - 1);
 
-    tick += deltaTime * 2;
+    tick += deltaTime * fallSpeed;
 
     if(tick >= 1.0) {
         tick = 0.0;
-        game_tick();
+        update_block();
     }
 
     for(uint64_t i = 0; i < NUMBER_OF_CELLS; i++){
@@ -483,7 +617,7 @@ void game(double deltaTime){
 
     double offX = ((double)bitmapWidth / 2 - (double)PLAYFIELD_COLS * CELL_SIZE / 2 + test_x * CELL_SIZE) - (double)CELL_SIZE / 2;
     double offY = ((double)bitmapHeight / 2 - (double)PLAYFIELD_ROWS * CELL_SIZE / 2 + test_y * CELL_SIZE) - (double)CELL_SIZE / 2;
-    drawShape(offX,offY, shape, rotation, 0xFF);
+    drawShape(offX,offY, shape, rotation, (1.0 - (double)placeTimer/(MAX_PLACETIMER+1)) * 255);
 }
 
 int main() {
@@ -515,6 +649,8 @@ int main() {
     // for(int i =0; i < PLAYFIELD_COLS * PLAYFIELD_ROWS; i++){
     //     PLAYFIELD[i] = rand() % (sizeof(colors)/sizeof(colors[0]));
     // }
+
+    shape = (rand() % (SHAPES_COUNT - 1) ) + 1;
 
     while (1) {
         QueryPerformanceCounter(&perfCounter);
