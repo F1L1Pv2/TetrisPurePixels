@@ -177,9 +177,7 @@ LRESULT window_proc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
         {
             keys[wParam] = 1;
 
-            if (old_keys[wParam] == 0) {
-                just_pressed_keys[wParam] = 1;
-            }
+            if (old_keys[wParam] == 0) just_pressed_keys[wParam] = 1;
             old_keys[wParam] = 1;
 
             break;
@@ -189,9 +187,7 @@ LRESULT window_proc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
         {
             keys[wParam] = 0;
 
-            if (old_keys[wParam] == 1) {
-                just_unpressed_keys[wParam] = 1;
-            }
+            if (old_keys[wParam] == 1) just_unpressed_keys[wParam] = 1;
             old_keys[wParam] = 0;
 
             break;
@@ -200,9 +196,7 @@ LRESULT window_proc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
         case WM_LBUTTONDOWN:
         {
             mouseKeys[0] = 1;
-            if(old_mouseKeys[0] == 0){
-                just_pressed_mouseKeys[0] = 1;
-            }
+            if(old_mouseKeys[0] == 0) just_pressed_mouseKeys[0] = 1;
             old_mouseKeys[0] = 1;
             break;
         }
@@ -210,9 +204,7 @@ LRESULT window_proc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
         case WM_LBUTTONUP:
         {
             mouseKeys[0] = 0;
-            if(old_mouseKeys[0] == 1){
-                just_unpressed_mouseKeys[0] = 0;
-            }
+            if(old_mouseKeys[0] == 1) just_unpressed_mouseKeys[0] = 0;
             old_mouseKeys[0] = 0;
             break;
         }
@@ -226,9 +218,7 @@ LRESULT window_proc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
         case WM_RBUTTONDOWN:
         {
             mouseKeys[2] = 1;
-            if(old_mouseKeys[2] == 0){
-                just_pressed_mouseKeys[2] = 1;
-            }
+            if(old_mouseKeys[2] == 0) just_pressed_mouseKeys[2] = 1;
             old_mouseKeys[2] = 1;
             break;
         }
@@ -236,9 +226,7 @@ LRESULT window_proc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
         case WM_RBUTTONUP:
         {
             mouseKeys[2] = 0;
-            if(old_mouseKeys[2] == 1){
-                just_pressed_mouseKeys[2] = 0;
-            }
+            if(old_mouseKeys[2] == 1) just_pressed_mouseKeys[2] = 0;
             old_mouseKeys[2] = 0;
             break;
         }
@@ -252,9 +240,7 @@ LRESULT window_proc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
         case WM_MBUTTONDOWN:
         {
             mouseKeys[1] = 1;
-            if(old_mouseKeys[1] == 0){
-                just_pressed_mouseKeys[1] = 1;
-            }
+            if(old_mouseKeys[1] == 0) just_pressed_mouseKeys[1] = 1;
             old_mouseKeys[1] = 1;
             break;
         }
@@ -262,9 +248,7 @@ LRESULT window_proc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
         case WM_MBUTTONUP:
         {
             mouseKeys[1] = 0;
-            if(old_mouseKeys[1] == 1){
-                just_pressed_mouseKeys[1] = 0;
-            }
+            if(old_mouseKeys[1] == 1) just_pressed_mouseKeys[1] = 0;
             old_mouseKeys[1] = 0;
             break;
         }
@@ -303,7 +287,6 @@ HWND createWindow(const char* windowName, uint32_t width, uint32_t height) {
         class.lpfnWndProc = window_proc;
         class.lpszClassName = className;
 
-        // Set the default cursor to an arrow
         class.hCursor = LoadCursor(NULL, IDC_ARROW);
 
         RegisterClassA(&class);
@@ -319,7 +302,6 @@ HWND createWindow(const char* windowName, uint32_t width, uint32_t height) {
     return window;
 }
 
-// Handle Window Messages
 bool HandleWindowMessages(MSG* msg) {
     while (PeekMessage(msg, NULL, 0, 0, PM_REMOVE)) {
         if (msg->message == WM_QUIT) return false;
@@ -329,14 +311,13 @@ bool HandleWindowMessages(MSG* msg) {
     return true;
 }
 
-// Initialize Bitmap
 void initializeBitmap(HDC hdc) {
     BITMAPINFO bmpInfo = {0};
     bmpInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bmpInfo.bmiHeader.biWidth = bitmapWidth;
-    bmpInfo.bmiHeader.biHeight = -bitmapHeight; // Negative to use a top-down DIB
+    bmpInfo.bmiHeader.biHeight = -bitmapHeight;
     bmpInfo.bmiHeader.biPlanes = 1;
-    bmpInfo.bmiHeader.biBitCount = 32; // 32-bit color (RGBA)
+    bmpInfo.bmiHeader.biBitCount = 32;
     bmpInfo.bmiHeader.biCompression = BI_RGB;
 
     hBitmap = CreateDIBSection(hdc, &bmpInfo, DIB_RGB_COLORS, &pPixels, NULL, 0);
@@ -346,10 +327,8 @@ void initializeBitmap(HDC hdc) {
         exit(1);
     }
 
-    // Initialize bitmap with some color (e.g., black)
     memset(pPixels, 0, bitmapWidth * bitmapHeight * 4);
 
-    // Create a persistent memory DC
     memDC = CreateCompatibleDC(hdc);
     SelectObject(memDC, hBitmap);
 }
@@ -370,17 +349,14 @@ uint32_t COLOR_FROM_LIGHTNESS(uint8_t lightness){
 }
 
 uint32_t COLOR_WITH_TINT(uint8_t lightness, uint32_t color) {
-    // Extract the RGB components
     uint8_t r = (color >> 16) & 0xFF;
     uint8_t g = (color >> 8) & 0xFF;
     uint8_t b = color & 0xFF;
 
-    // Apply the lightness tint
     r = (uint8_t)((r * lightness) / 255);
     g = (uint8_t)((g * lightness) / 255);
     b = (uint8_t)((b * lightness) / 255);
 
-    // Reconstruct the color with the tinted values
     return 0xFF000000 | ((uint32_t)r << 16) | ((uint32_t)g << 8) | b;
 }
 
@@ -397,18 +373,15 @@ void drawCell(int64_t x, int64_t y, int64_t width, int64_t height, uint32_t tint
 }
 
 uint32_t multiply_rgb(uint32_t argb, uint8_t multiplier) {
-    // Extract the A, R, G, and B components
     uint8_t alpha = (argb >> 24) & 0xFF;
     uint8_t red   = (argb >> 16) & 0xFF;
     uint8_t green = (argb >> 8) & 0xFF;
     uint8_t blue  = argb & 0xFF;
 
-    // Scale the RGB components with the multiplier (255 max normalization)
     red   = (red * multiplier) / 255;
     green = (green * multiplier) / 255;
     blue  = (blue * multiplier) / 255;
 
-    // Combine the components back into a uint32_t
     return (alpha << 24) | (red << 16) | (green << 8) | blue;
 }
 
@@ -442,8 +415,8 @@ void randomizeCell(Cell* cell){
     cell->accx = ((double)rand() / RAND_MAX * 2.0 - 1.0 ) * MAX_ACC;
     cell->accy = ((double)rand() / RAND_MAX * 2.0 - 1.0 ) * MAX_ACC * 1.2 * -1.0;
 
-    cell->shape = (rand() % (SHAPES_COUNT - 1) ) + 1; //colors[rand() % (sizeof(colors)/sizeof(colors[0]))];
-    cell->rotation = rand() % 4; //colors[rand() % (sizeof(colors)/sizeof(colors[0]))];
+    cell->shape = (rand() % (SHAPES_COUNT - 1) ) + 1;
+    cell->rotation = rand() % 4;
 }
 
 double lightness = 0.8;
@@ -513,7 +486,6 @@ void game(double deltaTime){
     drawShape(offX,offY, shape, rotation, 0xFF);
 }
 
-// Main Function
 int main() {
     srand(time(NULL));
 
@@ -555,7 +527,6 @@ int main() {
 
         game(deltaTime);
 
-        // Trigger immediate redraw
         HDC hdc = GetDC(window);
         BitBlt(hdc, 0, 0, bitmapWidth, bitmapHeight, memDC, 0, 0, SRCCOPY);
         ReleaseDC(window, hdc);
@@ -573,7 +544,6 @@ int main() {
             doublePress_mouseKeys[i] = false;
         }
 
-        // Cap the frame rate
         double frameTime = 1.0 / FPS;
         if (deltaTime < frameTime) {
             Sleep((DWORD)((frameTime - deltaTime) * 1000));
