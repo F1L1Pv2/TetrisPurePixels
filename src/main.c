@@ -388,8 +388,17 @@ uint32_t multiply_rgb(uint32_t argb, uint8_t multiplier) {
     return (alpha << 24) | (red << 16) | (green << 8) | blue;
 }
 
+bool checkCellLeftWall(int x, int y){
+    return x < 0;
+}
+
+bool checkCellRightWall(int x, int y){
+    return x >=PLAYFIELD_COLS;
+}
+
+
 bool checkCellHorWall(int x, int y){
-    return x < 0 || x >=PLAYFIELD_COLS;
+    return checkCellLeftWall(x,y) || checkCellRightWall(x,y);
 }
 
 bool checkCellVerWall(int x, int y){
@@ -400,8 +409,14 @@ bool checkCellTouchingWall(int x, int y){
     return checkCellHorWall(x, y) || checkCellVerWall(x,y);
 }
 
-bool checkCell(int x, int y, bool vertical){
-    return (vertical ? checkCellVerWall(x,y) : checkCellHorWall(x,y)) || (PLAYFIELD[y*PLAYFIELD_COLS + x] != 0);
+bool checkCell(int x, int y, int moveDir){
+
+    bool wall = false;
+    if(moveDir == 0) wall = checkCellVerWall(x,y);
+    if(moveDir == 1) wall = checkCellRightWall(x,y);
+    if(moveDir == 2) wall = checkCellLeftWall(x,y);
+
+    return wall || (PLAYFIELD[y*PLAYFIELD_COLS + x] != 0);
 }
 
 bool shapeColide(int x, int y, SHAPE shape, int rotation, int moveDir){
@@ -426,17 +441,17 @@ bool shapeColide(int x, int y, SHAPE shape, int rotation, int moveDir){
 
     bool touched = false;
 
-    if((shapeForm & 0b00000000001) != 0) touched |= checkCell(offX - 1, offY - 1, moveDir == 0);
-    if((shapeForm & 0b00000000010) != 0) touched |= checkCell(offX    , offY - 1, moveDir == 0);
-    if((shapeForm & 0b00000000100) != 0) touched |= checkCell(offX + 1, offY - 1, moveDir == 0);
-    if((shapeForm & 0b00000001000) != 0) touched |= checkCell(offX - 1, offY    , moveDir == 0);
-    if((shapeForm & 0b00000010000) != 0) touched |= checkCell(offX    , offY    , moveDir == 0);
-    if((shapeForm & 0b00000100000) != 0) touched |= checkCell(offX + 1, offY    , moveDir == 0);
-    if((shapeForm & 0b00001000000) != 0) touched |= checkCell(offX - 1, offY + 1, moveDir == 0);
-    if((shapeForm & 0b00010000000) != 0) touched |= checkCell(offX    , offY + 1, moveDir == 0);
-    if((shapeForm & 0b00100000000) != 0) touched |= checkCell(offX + 1, offY + 1, moveDir == 0);
-    if((shapeForm & 0b01000000000) != 0) touched |= checkCell(offX + 2, offY    , moveDir == 0);
-    if((shapeForm & 0b10000000000) != 0) touched |= checkCell(offX    , offY + 2, moveDir == 0);
+    if((shapeForm & 0b00000000001) != 0) touched |= checkCell(offX - 1, offY - 1, moveDir);
+    if((shapeForm & 0b00000000010) != 0) touched |= checkCell(offX    , offY - 1, moveDir);
+    if((shapeForm & 0b00000000100) != 0) touched |= checkCell(offX + 1, offY - 1, moveDir);
+    if((shapeForm & 0b00000001000) != 0) touched |= checkCell(offX - 1, offY    , moveDir);
+    if((shapeForm & 0b00000010000) != 0) touched |= checkCell(offX    , offY    , moveDir);
+    if((shapeForm & 0b00000100000) != 0) touched |= checkCell(offX + 1, offY    , moveDir);
+    if((shapeForm & 0b00001000000) != 0) touched |= checkCell(offX - 1, offY + 1, moveDir);
+    if((shapeForm & 0b00010000000) != 0) touched |= checkCell(offX    , offY + 1, moveDir);
+    if((shapeForm & 0b00100000000) != 0) touched |= checkCell(offX + 1, offY + 1, moveDir);
+    if((shapeForm & 0b01000000000) != 0) touched |= checkCell(offX + 2, offY    , moveDir);
+    if((shapeForm & 0b10000000000) != 0) touched |= checkCell(offX    , offY + 2, moveDir);
 
     return touched;
 }
