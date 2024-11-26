@@ -16,7 +16,7 @@ bool platform_rot_right();
 
 void platform_draw_rectangle(double x, double y, double width, double height, unsigned int color);
 
-void platform_init(double* deltaTimeIN, double* TimeIN);
+void platform_init(double* deltaTimeIN, double* TimeIN); // you are supposed to set deltaTime and Time in platform to these pointers
 void platform_cleanup();
 
 bool platform_events();
