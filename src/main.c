@@ -542,16 +542,13 @@ void game(double deltaTime){
     draw_encoded(text_cell_size*(1.5+3 * 4),platform_screen_height()-text_cell_size*8,counterShapes['P' - 'A' + 10],0xFF404040,text_cell_size);
 }
 
-double delta = 0.0;
-double TTime = 0.0;
+
+double Time = 0.0;
 
 int main() {
     srand(time(NULL));
 
-    deltaTime = &delta;
-    Time = &TTime;
-
-    platform_init(deltaTime,Time);
+    platform_init();
 
     for(uint64_t i = 0; i < NUMBER_OF_CELLS; i++){
         Cell* cell = cells+i;
@@ -566,15 +563,15 @@ int main() {
     while (1) {
         if(!platform_pre_game_update()) break;
 
-        if(*deltaTime > 2.0 / FPS) *deltaTime = 2.0 / FPS;
+        if(platform_get_deltaTime() > 2.0 / FPS) platform_set_deltaTime(2.0 / FPS);
 
-        game(*deltaTime);
+        game(platform_get_deltaTime());
 
         platform_post_game_update();
 
         double frameTime = 1.0 / FPS;
-        if (*deltaTime < frameTime) {
-            Sleep((int)((frameTime - *deltaTime) * 1000));
+        if (platform_get_deltaTime() < frameTime) {
+            Sleep((int)((frameTime - platform_get_deltaTime()) * 1000));
         }
     }
 

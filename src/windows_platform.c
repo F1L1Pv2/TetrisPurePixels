@@ -221,10 +221,9 @@ uint64_t frequency;
 LARGE_INTEGER perfCounter, lastPerfCounter;
 MSG msg = {0};
 HWND window;
+double deltaTime = 0.0;
 
-void platform_init(double* deltaTimeIN, double* TimeIN){
-    deltaTime = deltaTimeIN;
-    Time = TimeIN;
+void platform_init(){
     window = createWindow("Tetris", bitmapWidth, bitmapHeight);
     if (!window) exit(1);
 
@@ -239,7 +238,7 @@ void platform_init(double* deltaTimeIN, double* TimeIN){
 
 bool platform_pre_game_update(){
     QueryPerformanceCounter(&perfCounter);
-    *deltaTime = (double)(perfCounter.QuadPart - lastPerfCounter.QuadPart) / frequency;
+    deltaTime = (double)(perfCounter.QuadPart - lastPerfCounter.QuadPart) / frequency;
     lastPerfCounter = perfCounter;
     if (!HandleWindowMessages(&msg)) return false;
     return true;
@@ -249,8 +248,6 @@ void platform_post_game_update(){
     HDC hdc = GetDC(window);
     BitBlt(hdc, 0, 0, bitmapWidth, bitmapHeight, memDC, 0, 0, SRCCOPY);
     ReleaseDC(window, hdc);
-
-    *Time += *deltaTime;
 
     for(int i = 0; i<0xFE; i++){
         just_pressed_keys[i] = false;
@@ -262,6 +259,13 @@ void platform_post_game_update(){
         just_unpressed_mouseKeys[i] = false;
         doublePress_mouseKeys[i] = false;
     }
+}
+
+double platform_get_deltaTime(){
+    return deltaTime;
+}
+void platform_set_deltaTime(double time){
+    deltaTime = time;
 }
 
 void platform_cleanup(){
