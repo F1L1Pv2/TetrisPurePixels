@@ -24,6 +24,10 @@ int WinMain(
   LPSTR     lpCmdLine,
   int       nShowCmd
 ){
+    (void)hInstance;
+    (void)hPrevInstance;
+    (void)lpCmdLine;
+    (void)nShowCmd;
     return main();
 }
 #endif
@@ -388,33 +392,24 @@ uint32_t multiply_rgb(uint32_t argb, uint8_t multiplier) {
     return (alpha << 24) | (red << 16) | (green << 8) | blue;
 }
 
-bool checkCellLeftWall(int x, int y){
+bool checkCellLeftWall(int x){
     return x < 0;
 }
 
-bool checkCellRightWall(int x, int y){
+bool checkCellRightWall(int x){
     return x >=PLAYFIELD_COLS;
 }
 
-
-bool checkCellHorWall(int x, int y){
-    return checkCellLeftWall(x,y) || checkCellRightWall(x,y);
-}
-
-bool checkCellVerWall(int x, int y){
+bool checkCellVerWall(int y){
     return y >= PLAYFIELD_ROWS;
-}
-
-bool checkCellTouchingWall(int x, int y){
-    return checkCellHorWall(x, y) || checkCellVerWall(x,y);
 }
 
 bool checkCell(int x, int y, int moveDir){
 
     bool wall = false;
-    if(moveDir == 0) wall = checkCellVerWall(x,y);
-    if(moveDir == 1) wall = checkCellRightWall(x,y);
-    if(moveDir == 2) wall = checkCellLeftWall(x,y);
+    if(moveDir == 0) wall = checkCellVerWall(y);
+    if(moveDir == 1) wall = checkCellRightWall(x);
+    if(moveDir == 2) wall = checkCellLeftWall(x);
 
     return wall || (PLAYFIELD[y*PLAYFIELD_COLS + x] != 0);
 }
