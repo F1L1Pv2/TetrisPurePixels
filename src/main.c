@@ -569,13 +569,13 @@ int main() {
     shape = (rand() % (SHAPES_COUNT - 1) ) + 1;
 
     while (1) {
-        if(!platform_events()) break;
+        if(!platform_pre_game_update()) break;
 
         if(*deltaTime > 2.0 / FPS) *deltaTime = 2.0 / FPS;
 
         game(*deltaTime);
 
-        platform_update();
+        platform_post_game_update();
 
         double frameTime = 1.0 / FPS;
         if (*deltaTime < frameTime) {
