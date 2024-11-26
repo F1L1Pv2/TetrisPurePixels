@@ -347,10 +347,10 @@ void randomizeCell(Cell* cell){
 
 double lightness = 0.8;
 
-int test_x = PLAYFIELD_COLS / 2;
-int test_y = 0;
-SHAPE shape = 1;
-int rotation = 0;
+int player_x = PLAYFIELD_COLS / 2;
+int player_y = 0;
+SHAPE player_shape = 1;
+int player_rotation = 0;
 
 float tick = 0.0;
 
@@ -414,25 +414,25 @@ void clear_rows(){
 
 void update_block(){
     if(placeTimer == 2) {
-        if(!shapeColide(test_x,test_y,shape,rotation,0)){
-            test_y++;
+        if(!shapeColide(player_x,player_y,player_shape,player_rotation,0)){
+            player_y++;
             placeTimer = 0;
             return;
         }
 
-        placeShape(test_x,test_y,shape,rotation);
-        test_x = PLAYFIELD_COLS / 2;
-        test_y = 0;
-        rotation = 0;
-        shape = (rand() % (SHAPES_COUNT - 1) ) + 1;
+        placeShape(player_x,player_y,player_shape,player_rotation);
+        player_x = PLAYFIELD_COLS / 2;
+        player_y = 0;
+        player_rotation = 0;
+        player_shape = (rand() % (SHAPES_COUNT - 1) ) + 1;
 
         placeTimer = 0;
         clear_rows();
         return;
     }
 
-    if(!shapeColide(test_x,test_y,shape,rotation,0)){
-        test_y++;
+    if(!shapeColide(player_x,player_y,player_shape,player_rotation,0)){
+        player_y++;
         placeTimer = 0;
     }else{
         placeTimer++;
@@ -440,17 +440,17 @@ void update_block(){
 }
 
 void handleCol(){
-    bool moved = shapeColide(test_x,test_y,shape,rotation,0);
-    while(shapeColide(test_x,test_y,shape,rotation,0)) test_y--;
-    if(moved) test_y++;
+    bool moved = shapeColide(player_x,player_y,player_shape,player_rotation,0);
+    while(shapeColide(player_x,player_y,player_shape,player_rotation,0)) player_y--;
+    if(moved) player_y++;
 
-    moved = shapeColide(test_x,test_y,shape,rotation,1);
-    while(shapeColide(test_x,test_y,shape,rotation,1)) test_x--;
-    if(moved) test_x++;
+    moved = shapeColide(player_x,player_y,player_shape,player_rotation,1);
+    while(shapeColide(player_x,player_y,player_shape,player_rotation,1)) player_x--;
+    if(moved) player_x++;
 
-    moved = shapeColide(test_x,test_y,shape,rotation,2);
-    while(shapeColide(test_x,test_y,shape,rotation,2)) test_x++;
-    if(moved) test_x--;
+    moved = shapeColide(player_x,player_y,player_shape,player_rotation,2);
+    while(shapeColide(player_x,player_y,player_shape,player_rotation,2)) player_x++;
+    if(moved) player_x--;
 }
 
 void game(double deltaTime){
@@ -467,23 +467,23 @@ void game(double deltaTime){
     lightness -= deltaTime / 10;
     if(lightness < 0.2) lightness = 0.2;
 
-    if(platform_move_right() && !shapeColide(test_x,test_y,shape,rotation,1)) test_x++;
-    if(platform_move_left() && !shapeColide(test_x,test_y,shape,rotation,2)) test_x--;
+    if(platform_move_right() && !shapeColide(player_x,player_y,player_shape,player_rotation,1)) player_x++;
+    if(platform_move_left() && !shapeColide(player_x,player_y,player_shape,player_rotation,2)) player_x--;
 
     if(platform_rot_right()) {
-        rotation = (rotation + 1) % 4;
+        player_rotation = (player_rotation + 1) % 4;
         handleCol();
     }
 
     if(platform_rot_left()) {
-        rotation = (rotation - 1) > 0 ? (rotation - 1) : 4 + (rotation - 1);
+        player_rotation = (player_rotation - 1) > 0 ? (player_rotation - 1) : 4 + (player_rotation - 1);
         handleCol();
     }
 
     if(platform_move_jump_down()) {
         do {
             update_block();
-        }while(test_y != 0);
+        }while(player_y != 0);
     }
 
     fallSpeed = platform_move_down() ? DEFAULT_FALL_SPEED * 8 : DEFAULT_FALL_SPEED;
@@ -519,9 +519,9 @@ void game(double deltaTime){
         }
     }
 
-    double offX = ((double)platform_screen_width() / 2 - (double)PLAYFIELD_COLS * CELL_SIZE / 2 + test_x * CELL_SIZE) - (double)CELL_SIZE / 2;
-    double offY = ((double)platform_screen_height() / 2 - (double)PLAYFIELD_ROWS * CELL_SIZE / 2 + test_y * CELL_SIZE) - (double)CELL_SIZE / 2;
-    drawShape(offX,offY, shape, rotation, (1.0 - (double)placeTimer/(MAX_PLACETIMER+1)) * 255);
+    double offX = ((double)platform_screen_width() / 2 - (double)PLAYFIELD_COLS * CELL_SIZE / 2 + player_x * CELL_SIZE) - (double)CELL_SIZE / 2;
+    double offY = ((double)platform_screen_height() / 2 - (double)PLAYFIELD_ROWS * CELL_SIZE / 2 + player_y * CELL_SIZE) - (double)CELL_SIZE / 2;
+    drawShape(offX,offY, player_shape, player_rotation, (1.0 - (double)placeTimer/(MAX_PLACETIMER+1)) * 255);
 
     int number_of_counters = MAX_DIGITS;
     double scoreBoardCell = (double)CELL_SIZE * 0.3;
@@ -558,7 +558,7 @@ int main() {
         cell->y = (double)rand() / RAND_MAX * platform_screen_height();
     }
 
-    shape = (rand() % (SHAPES_COUNT - 1) ) + 1;
+    player_shape = (rand() % (SHAPES_COUNT - 1) ) + 1;
 
     while (1) {
         if(!platform_pre_game_update()) break;
