@@ -7,15 +7,18 @@
 //      made by F1L1Pv2
 
 
-#include <Windows.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <math.h>
 #include "time.h"
 #include <string.h>
+#include "platform.h"
 
+#define RAND_MAX 0x7fff
 
+#ifdef WINDOWS_PLATFORM
+#include "Windows.h"
 #ifndef DEBUG
 int main();
 
@@ -32,31 +35,9 @@ int WinMain(
     return main();
 }
 #endif
+#endif
 
 const uint64_t FPS = 120;
-char* className = NULL;
-
-HBITMAP hBitmap;
-HDC memDC; // Persistent memory DC
-void* pPixels;
-int bitmapWidth = 640;
-int bitmapHeight = 480;
-double Time = 0.0;
-
-bool keys[0xFE];
-bool old_keys[0xFE];
-bool just_pressed_keys[0xFE];
-bool just_unpressed_keys[0xFE];
-
-bool mouseKeys[3];
-bool old_mouseKeys[3];
-bool just_pressed_mouseKeys[3];
-bool doublePress_mouseKeys[3];
-bool just_unpressed_mouseKeys[3];
-int scroll;
-
-int mouse_x;
-int mouse_y;
 
 #define CELL_SIZE 25
 #define NUMBER_OF_CELLS 1000
@@ -212,198 +193,6 @@ const uint32_t colors[] = {
     0xFF00FFFF, // cyan    - I shape
 };
 
-LRESULT window_proc(HWND hwnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
-    switch (Msg) {
-        case WM_CLOSE:
-            DestroyWindow(hwnd);
-            return 0;
-
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            return 0;
-
-        case WM_PAINT: {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hwnd, &ps);
-
-            // Render the DIB to the window using the persistent memory DC
-            BitBlt(hdc, 0, 0, bitmapWidth, bitmapHeight, memDC, 0, 0, SRCCOPY);
-
-            EndPaint(hwnd, &ps);
-            return 0;
-        }
-
-        case WM_KEYDOWN:
-        {
-            keys[wParam] = 1;
-
-            if (old_keys[wParam] == 0) just_pressed_keys[wParam] = 1;
-            old_keys[wParam] = 1;
-
-            break;
-        }
-
-        case WM_KEYUP:
-        {
-            keys[wParam] = 0;
-
-            if (old_keys[wParam] == 1) just_unpressed_keys[wParam] = 1;
-            old_keys[wParam] = 0;
-
-            break;
-        }
-
-        case WM_LBUTTONDOWN:
-        {
-            mouseKeys[0] = 1;
-            if(old_mouseKeys[0] == 0) just_pressed_mouseKeys[0] = 1;
-            old_mouseKeys[0] = 1;
-            break;
-        }
-
-        case WM_LBUTTONUP:
-        {
-            mouseKeys[0] = 0;
-            if(old_mouseKeys[0] == 1) just_unpressed_mouseKeys[0] = 0;
-            old_mouseKeys[0] = 0;
-            break;
-        }
-
-        case WM_LBUTTONDBLCLK:
-        {
-            doublePress_mouseKeys[0] = 1;
-            break;
-        }
-
-        case WM_RBUTTONDOWN:
-        {
-            mouseKeys[2] = 1;
-            if(old_mouseKeys[2] == 0) just_pressed_mouseKeys[2] = 1;
-            old_mouseKeys[2] = 1;
-            break;
-        }
-
-        case WM_RBUTTONUP:
-        {
-            mouseKeys[2] = 0;
-            if(old_mouseKeys[2] == 1) just_pressed_mouseKeys[2] = 0;
-            old_mouseKeys[2] = 0;
-            break;
-        }
-
-        case WM_RBUTTONDBLCLK:
-        {
-            doublePress_mouseKeys[2] = 1;
-            break;
-        }
-
-        case WM_MBUTTONDOWN:
-        {
-            mouseKeys[1] = 1;
-            if(old_mouseKeys[1] == 0) just_pressed_mouseKeys[1] = 1;
-            old_mouseKeys[1] = 1;
-            break;
-        }
-
-        case WM_MBUTTONUP:
-        {
-            mouseKeys[1] = 0;
-            if(old_mouseKeys[1] == 1) just_pressed_mouseKeys[1] = 0;
-            old_mouseKeys[1] = 0;
-            break;
-        }
-
-        case WM_MBUTTONDBLCLK:
-        {
-            doublePress_mouseKeys[1] = 1;
-            break;
-        }
-
-        case WM_MOUSEMOVE:
-        {
-            mouse_x = LOWORD(lParam);
-            mouse_y = HIWORD(lParam);
-            break;
-        }
-
-        case WM_MOUSEWHEEL:{
-
-            int zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
-
-            scroll = zDelta;
-
-            break;
-        }
-    }
-    return DefWindowProcA(hwnd, Msg, wParam, lParam);
-}
-
-HWND createWindow(const char* windowName, uint32_t width, uint32_t height) {
-    if (className == NULL) {
-        className = "TETRISOUHMCLASS";
-
-        WNDCLASSA class = {0};
-        class.hInstance = GetModuleHandleA(NULL);
-        class.lpfnWndProc = window_proc;
-        class.lpszClassName = className;
-
-        class.hCursor = LoadCursor(NULL, IDC_ARROW);
-
-        RegisterClassA(&class);
-    }
-
-    HWND window = CreateWindowA(className, windowName, WS_OVERLAPPEDWINDOW,
-                                CW_USEDEFAULT, CW_USEDEFAULT, width, height,
-                                NULL, NULL, GetModuleHandleA(NULL), NULL);
-
-    if (!window) return NULL;
-
-    ShowWindow(window, SW_SHOW);
-    return window;
-}
-
-bool HandleWindowMessages(MSG* msg) {
-    while (PeekMessage(msg, NULL, 0, 0, PM_REMOVE)) {
-        if (msg->message == WM_QUIT) return false;
-        TranslateMessage(msg);
-        DispatchMessage(msg);
-    }
-    return true;
-}
-
-void initializeBitmap(HDC hdc) {
-    BITMAPINFO bmpInfo = {0};
-    bmpInfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bmpInfo.bmiHeader.biWidth = bitmapWidth;
-    bmpInfo.bmiHeader.biHeight = -bitmapHeight;
-    bmpInfo.bmiHeader.biPlanes = 1;
-    bmpInfo.bmiHeader.biBitCount = 32;
-    bmpInfo.bmiHeader.biCompression = BI_RGB;
-
-    hBitmap = CreateDIBSection(hdc, &bmpInfo, DIB_RGB_COLORS, &pPixels, NULL, 0);
-
-    if (!hBitmap || !pPixels) {
-        MessageBoxA(NULL, "Failed to create DIB section!", "Error", MB_ICONERROR);
-        exit(1);
-    }
-
-    memset(pPixels, 0, bitmapWidth * bitmapHeight * 4);
-
-    memDC = CreateCompatibleDC(hdc);
-    SelectObject(memDC, hBitmap);
-}
-
-void drawRectangle(int64_t x, int64_t y, int64_t width, int64_t height, uint32_t color){
-    for (int64_t i = y; i < y+height; i++){
-        if (i < 0 || i >= bitmapHeight) continue;
-        for(int64_t j = x; j < x+width; j++){
-            if (j < 0 || j >= bitmapWidth) continue;
-
-            ((uint32_t*)pPixels)[i * bitmapWidth + j] = color;
-        }
-    }
-}
-
 uint32_t COLOR_FROM_LIGHTNESS(uint8_t lightness){
     return 0xFF000000 | ((uint32_t)lightness) << 8 * 2 | ((uint32_t)lightness) << 8 * 1 | ((uint32_t)lightness) << 8 * 0;
 }
@@ -421,13 +210,13 @@ uint32_t COLOR_WITH_TINT(uint8_t lightness, uint32_t color) {
 }
 
 void drawCell(int64_t x, int64_t y, int64_t width, int64_t height, uint32_t tint){
-    drawRectangle(x,y,width,height, COLOR_WITH_TINT(0x7F, tint));
+    platform_draw_rectangle(x,y,width,height, COLOR_WITH_TINT(0x7F, tint));
 
     double diffX = (double)width * 0.2;
     double diffY = (double)height * 0.2;
 
-    drawRectangle(x + (int64_t)(diffX * 0.5), y + (int64_t)(diffY * 0.5), width - (int64_t)diffX, height - (int64_t)diffY, COLOR_WITH_TINT(0x70, tint));
-    drawRectangle(x + (int64_t)(diffX), y + (int64_t)(diffY), width - (int64_t)(diffX * 2), height - (int64_t)(diffY * 2), COLOR_WITH_TINT(0xAA, tint));
+    platform_draw_rectangle(x + (int64_t)(diffX * 0.5), y + (int64_t)(diffY * 0.5), width - (int64_t)diffX, height - (int64_t)diffY, COLOR_WITH_TINT(0x70, tint));
+    platform_draw_rectangle(x + (int64_t)(diffX), y + (int64_t)(diffY), width - (int64_t)(diffX * 2), height - (int64_t)(diffY * 2), COLOR_WITH_TINT(0xAA, tint));
 }
 
 uint32_t multiply_rgb(uint32_t argb, uint8_t multiplier) {
@@ -549,8 +338,8 @@ void drawShape(double x, double y, SHAPE shape, int rotation, uint8_t lightness)
 }
 
 void randomizeCell(Cell* cell){
-    cell->x = (double)bitmapWidth / 2 + ((double)rand() / RAND_MAX * 2.0 - 1.0 ) * 100;
-    cell->y = (double)bitmapHeight / 2 + ((double)rand() / RAND_MAX * 2.0 - 1.0 ) * 100;
+    cell->x = (double)platform_screen_width() / 2 + ((double)rand() / RAND_MAX * 2.0 - 1.0 ) * 100;
+    cell->y = (double)platform_screen_width() / 2 + ((double)rand() / RAND_MAX * 2.0 - 1.0 ) * 100;
     cell->accx = ((double)rand() / RAND_MAX * 2.0 - 1.0 ) * MAX_ACC;
     cell->accy = ((double)rand() / RAND_MAX * 2.0 - 1.0 ) * MAX_ACC * 1.2 * -1.0;
 
@@ -675,31 +464,31 @@ void game(double deltaTime){
         outOfBounds = false;
     }
 
-    drawRectangle(0,0,bitmapWidth, bitmapHeight, 0xFF181818);
+    platform_draw_rectangle(0,0,platform_screen_width(), platform_screen_height(), 0xFF181818);
 
     lightness -= deltaTime / 10;
     if(lightness < 0.2) lightness = 0.2;
 
-    if(just_pressed_keys['D'] && !shapeColide(test_x,test_y,shape,rotation,1)) test_x++;
-    if(just_pressed_keys['A'] && !shapeColide(test_x,test_y,shape,rotation,2)) test_x--;
+    if(platform_move_right() && !shapeColide(test_x,test_y,shape,rotation,1)) test_x++;
+    if(platform_move_left() && !shapeColide(test_x,test_y,shape,rotation,2)) test_x--;
 
-    if(just_pressed_keys['E']) {
+    if(platform_rot_right()) {
         rotation = (rotation + 1) % 4;
         handleCol();
     }
 
-    if(just_pressed_keys['Q']) {
+    if(platform_rot_left()) {
         rotation = (rotation - 1) > 0 ? (rotation - 1) : 4 + (rotation - 1);
         handleCol();
     }
 
-    if(just_pressed_keys[VK_SPACE]) {
+    if(platform_move_jump_down()) {
         do {
             update_block();
         }while(test_y != 0);
     }
 
-    fallSpeed = keys['S'] ? DEFAULT_FALL_SPEED * 8 : DEFAULT_FALL_SPEED;
+    fallSpeed = platform_move_down() ? DEFAULT_FALL_SPEED * 8 : DEFAULT_FALL_SPEED;
 
     // if(just_pressed_keys['1']) shape = (shape + 1) % 7;
     // if(just_pressed_keys['2']) shape = (shape - 1) > 0 ? (shape - 1) : 7 + (shape - 1);
@@ -720,112 +509,81 @@ void game(double deltaTime){
         cell->accy -= gravity * deltaTime;
         drawShape(cell->x - (double)CELL_SIZE / 2,cell->y - (double)CELL_SIZE / 2,cell->shape, cell->rotation, lightness*255);
 
-        if(cell->x - (double)CELL_SIZE * 3 >= bitmapWidth || cell->x + (double)CELL_SIZE * 3 < 0 || cell->y - (double)CELL_SIZE * 3 >= bitmapHeight || cell->y + (double)CELL_SIZE * 3 < 0){
+        if(cell->x - (double)CELL_SIZE * 3 >= platform_screen_width() || cell->x + (double)CELL_SIZE * 3 < 0 || cell->y - (double)CELL_SIZE * 3 >= platform_screen_height() || cell->y + (double)CELL_SIZE * 3 < 0){
             randomizeCell(cell);
         }
     }
 
-    drawRectangle(((double)bitmapWidth/2 - (double)(PLAYFIELD_COLS + 1)* CELL_SIZE / 2) - (double)CELL_SIZE / 2,((double)bitmapHeight/2 - (double)(PLAYFIELD_ROWS + 1)* CELL_SIZE / 2) - (double)CELL_SIZE / 2,(double)(PLAYFIELD_COLS + 1)* CELL_SIZE, (double)(PLAYFIELD_ROWS + 1)* CELL_SIZE, 0xFF181818);
+    platform_draw_rectangle(((double)platform_screen_width()/2 - (double)(PLAYFIELD_COLS + 1)* CELL_SIZE / 2) - (double)CELL_SIZE / 2,((double)platform_screen_height()/2 - (double)(PLAYFIELD_ROWS + 1)* CELL_SIZE / 2) - (double)CELL_SIZE / 2,(double)(PLAYFIELD_COLS + 1)* CELL_SIZE, (double)(PLAYFIELD_ROWS + 1)* CELL_SIZE, 0xFF181818);
     for(uint64_t i = 0; i < PLAYFIELD_ROWS; i++){
-        double y = ((double)bitmapHeight / 2 - (double)PLAYFIELD_ROWS * CELL_SIZE / 2 + i * CELL_SIZE) - (double)CELL_SIZE / 2;
+        double y = ((double)platform_screen_height() / 2 - (double)PLAYFIELD_ROWS * CELL_SIZE / 2 + i * CELL_SIZE) - (double)CELL_SIZE / 2;
         for(uint64_t j = 0; j < PLAYFIELD_COLS; j++){
-            double x = ((double)bitmapWidth / 2 - (double)PLAYFIELD_COLS * CELL_SIZE / 2 + j * CELL_SIZE) - (double)CELL_SIZE / 2;
+            double x = ((double)platform_screen_width() / 2 - (double)PLAYFIELD_COLS * CELL_SIZE / 2 + j * CELL_SIZE) - (double)CELL_SIZE / 2;
 
             drawCell(x,y,CELL_SIZE,CELL_SIZE,colors[PLAYFIELD[i*PLAYFIELD_COLS+j]]);
         }
     }
 
-    double offX = ((double)bitmapWidth / 2 - (double)PLAYFIELD_COLS * CELL_SIZE / 2 + test_x * CELL_SIZE) - (double)CELL_SIZE / 2;
-    double offY = ((double)bitmapHeight / 2 - (double)PLAYFIELD_ROWS * CELL_SIZE / 2 + test_y * CELL_SIZE) - (double)CELL_SIZE / 2;
+    double offX = ((double)platform_screen_width() / 2 - (double)PLAYFIELD_COLS * CELL_SIZE / 2 + test_x * CELL_SIZE) - (double)CELL_SIZE / 2;
+    double offY = ((double)platform_screen_height() / 2 - (double)PLAYFIELD_ROWS * CELL_SIZE / 2 + test_y * CELL_SIZE) - (double)CELL_SIZE / 2;
     drawShape(offX,offY, shape, rotation, (1.0 - (double)placeTimer/(MAX_PLACETIMER+1)) * 255);
 
     int number_of_counters = MAX_DIGITS;
     double scoreBoardCell = (double)CELL_SIZE * 0.3;
     double scoreBoardWidth = scoreBoardCell*(number_of_counters*3 + 2);
     double scoreBoardHeight = scoreBoardCell*(3+2);
-    double scoreBoardX = ((double)bitmapWidth/2 + (double)(PLAYFIELD_COLS+1) * (double)CELL_SIZE / 2.0) + ((double)CELL_SIZE)/16.0;
-    double scoreBoardY = (double)bitmapHeight/2 - scoreBoardHeight / 2;
+    double scoreBoardX = ((double)platform_screen_width()/2 + (double)(PLAYFIELD_COLS+1) * (double)CELL_SIZE / 2.0) + ((double)CELL_SIZE)/16.0;
+    double scoreBoardY = (double)platform_screen_height()/2 - scoreBoardHeight / 2;
 
-    drawRectangle(scoreBoardX,scoreBoardY, scoreBoardWidth,scoreBoardHeight, 0xFF181818);
+    platform_draw_rectangle(scoreBoardX,scoreBoardY, scoreBoardWidth,scoreBoardHeight, 0xFF181818);
     draw_counter(scoreBoardX+scoreBoardCell*2,scoreBoardY + scoreBoardHeight/2 - scoreBoardCell/2, score, scoreBoardCell);
 
     double text_cell_size = (double)CELL_SIZE / 3;
 
-    draw_encoded(text_cell_size*(1.5+3 * 0),bitmapHeight-text_cell_size*8,counterShapes['F' - 'A' + 10],0xFF404040,text_cell_size);
-    draw_encoded(text_cell_size*(1.5+3 * 1),bitmapHeight-text_cell_size*8,counterShapes[1],0xFF404040,text_cell_size);
-    draw_encoded(text_cell_size*(1.5+3 * 2),bitmapHeight-text_cell_size*8,counterShapes['L' - 'A' + 10],0xFF404040,text_cell_size);
-    draw_encoded(text_cell_size*(1.5+3 * 3),bitmapHeight-text_cell_size*8,counterShapes[1],0xFF404040,text_cell_size);
-    draw_encoded(text_cell_size*(1.5+3 * 4),bitmapHeight-text_cell_size*8,counterShapes['P' - 'A' + 10],0xFF404040,text_cell_size);
+    draw_encoded(text_cell_size*(1.5+3 * 0),platform_screen_height()-text_cell_size*8,counterShapes['F' - 'A' + 10],0xFF404040,text_cell_size);
+    draw_encoded(text_cell_size*(1.5+3 * 1),platform_screen_height()-text_cell_size*8,counterShapes[1],0xFF404040,text_cell_size);
+    draw_encoded(text_cell_size*(1.5+3 * 2),platform_screen_height()-text_cell_size*8,counterShapes['L' - 'A' + 10],0xFF404040,text_cell_size);
+    draw_encoded(text_cell_size*(1.5+3 * 3),platform_screen_height()-text_cell_size*8,counterShapes[1],0xFF404040,text_cell_size);
+    draw_encoded(text_cell_size*(1.5+3 * 4),platform_screen_height()-text_cell_size*8,counterShapes['P' - 'A' + 10],0xFF404040,text_cell_size);
 }
+
+double delta = 0.0;
+double TTime = 0.0;
 
 int main() {
     srand(time(NULL));
 
-    HWND window = createWindow("Tetris", bitmapWidth, bitmapHeight);
-    if (!window) return 1;
+    deltaTime = &delta;
+    Time = &TTime;
 
-    HDC hdc = GetDC(window);
-    initializeBitmap(hdc);
-    ReleaseDC(window, hdc);
-
-    MSG msg = {0};
-
-    double deltaTime = 0.0;
-    uint64_t frequency;
-    LARGE_INTEGER perfCounter, lastPerfCounter;
-    QueryPerformanceFrequency((LARGE_INTEGER*)&frequency);
-    QueryPerformanceCounter(&lastPerfCounter);
+    platform_init(deltaTime,Time);
 
     for(uint64_t i = 0; i < NUMBER_OF_CELLS; i++){
         Cell* cell = cells+i;
 
         randomizeCell(cell);
-        cell->x = (double)rand() / RAND_MAX * bitmapWidth;
-        cell->y = (double)rand() / RAND_MAX * bitmapHeight;
+        cell->x = (double)rand() / RAND_MAX * platform_screen_width();
+        cell->y = (double)rand() / RAND_MAX * platform_screen_height();
     }
-
-    // for(int i =0; i < PLAYFIELD_COLS * PLAYFIELD_ROWS; i++){
-    //     PLAYFIELD[i] = rand() % (sizeof(colors)/sizeof(colors[0]));
-    // }
 
     shape = (rand() % (SHAPES_COUNT - 1) ) + 1;
 
     while (1) {
-        QueryPerformanceCounter(&perfCounter);
-        deltaTime = (double)(perfCounter.QuadPart - lastPerfCounter.QuadPart) / frequency;
-        lastPerfCounter = perfCounter;
+        if(!platform_events()) break;
 
-        if(deltaTime > 2.0 / FPS) deltaTime = 2.0 / FPS;
+        if(*deltaTime > 2.0 / FPS) *deltaTime = 2.0 / FPS;
 
-        if (!HandleWindowMessages(&msg)) break;
+        game(*deltaTime);
 
-        game(deltaTime);
-
-        HDC hdc = GetDC(window);
-        BitBlt(hdc, 0, 0, bitmapWidth, bitmapHeight, memDC, 0, 0, SRCCOPY);
-        ReleaseDC(window, hdc);
-
-        Time += deltaTime;
-
-        for(int i = 0; i<0xFE; i++){
-            just_pressed_keys[i] = false;
-            just_unpressed_keys[i] = false;
-        }
-
-        for(int i = 0; i<3; i++){
-            just_pressed_mouseKeys[i] = false;
-            just_unpressed_mouseKeys[i] = false;
-            doublePress_mouseKeys[i] = false;
-        }
+        platform_update();
 
         double frameTime = 1.0 / FPS;
-        if (deltaTime < frameTime) {
-            Sleep((DWORD)((frameTime - deltaTime) * 1000));
+        if (*deltaTime < frameTime) {
+            Sleep((int)((frameTime - *deltaTime) * 1000));
         }
     }
 
-    DeleteDC(memDC);
-    DeleteObject(hBitmap);
+    platform_cleanup();
 
     return 0;
 }

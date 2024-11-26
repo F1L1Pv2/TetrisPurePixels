@@ -1,0 +1,1 @@
+clang -o tetris.exe -D WINDOWS_PLATFORM src/main.c src/windows_platform.c -luser32 -lgdi32 -O3 -Wl,/subsystem:windows -Wno-backslash-newline-escape
