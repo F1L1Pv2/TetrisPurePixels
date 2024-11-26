@@ -64,7 +64,8 @@ int mouse_y;
 #define PLAYFIELD_COLS 10
 #define PLAYFIELD_ROWS 16
 const double gravity = -9.8 * 10.0;
-double fallSpeed = 2.0;
+#define DEFAULT_FALL_SPEED 2.0
+double fallSpeed = DEFAULT_FALL_SPEED;
 bool outOfBounds = false;
 
 typedef enum {
@@ -147,6 +148,41 @@ const uint16_t shapeEncoders[] = {
     0b00010011010, // - T     shape - rotated 270 deg
     0b00000011011, // - Block shape - rotated 270 deg
     0b10010010010, // - I     shape - rotated 270 deg
+};
+
+const uint16_t counterShapes[] = {
+
+    /*
+       
+       Shape Format
+
+      0bKJIHGFEDCBA
+        
+          | |
+          | |
+         \   /
+          \ /
+
+        |A|B|C|
+        |D|E|F|J|
+        |G|H|I|
+          |K|
+    
+      'E' is origin
+
+    */
+
+
+    0b00111101111,
+    0b00010010010,
+    0b00110010011,
+    0b00111011111,
+    0b00110011101,
+    0b00011010110,
+    0b00111111001,
+    0b00001010111,
+    0b00111111111,
+    0b00100111111,
 };
 
 const uint32_t colors[] = {
@@ -369,8 +405,6 @@ uint32_t COLOR_WITH_TINT(uint8_t lightness, uint32_t color) {
 }
 
 void drawCell(int64_t x, int64_t y, int64_t width, int64_t height, uint32_t tint){
-
-
     drawRectangle(x,y,width,height, COLOR_WITH_TINT(0x7F, tint));
 
     double diffX = (double)width * 0.2;
@@ -470,6 +504,23 @@ void placeShape(int x, int y, SHAPE shape, int rotation){
     if((shapeForm & 0b10000000000) != 0) setCell(x    ,y + 2, shape);
 }
 
+void draw_encoded(double x, double y, uint16_t encoded, uint32_t color, double size){
+    if((encoded & 0b00000000001) != 0) drawCell(x - size    , y - size    , size, size, color);
+    if((encoded & 0b00000000010) != 0) drawCell(x           , y - size    , size, size, color);
+    if((encoded & 0b00000000100) != 0) drawCell(x + size    , y - size    , size, size, color);
+
+    if((encoded & 0b00000001000) != 0) drawCell(x - size    , y           , size, size, color);
+    if((encoded & 0b00000010000) != 0) drawCell(x           , y           , size, size, color);
+    if((encoded & 0b00000100000) != 0) drawCell(x + size    , y           , size, size, color);
+
+    if((encoded & 0b00001000000) != 0) drawCell(x - size    , y + size    , size, size, color);
+    if((encoded & 0b00010000000) != 0) drawCell(x           , y + size    , size, size, color);
+    if((encoded & 0b00100000000) != 0) drawCell(x + size    , y + size    , size, size, color);
+
+    if((encoded & 0b01000000000) != 0) drawCell(x + size * 2, y           , size, size, color);
+    if((encoded & 0b10000000000) != 0) drawCell(x           , y + size * 2, size, size, color);
+}
+
 void drawShape(double x, double y, SHAPE shape, int rotation, uint8_t lightness) {
     uint32_t color = multiply_rgb(colors[shape], lightness);
     if(shape <= 0 || shape >= SHAPES_COUNT) {drawCell(x, y, CELL_SIZE, CELL_SIZE, color); return;}
@@ -478,20 +529,7 @@ void drawShape(double x, double y, SHAPE shape, int rotation, uint8_t lightness)
 
     uint16_t shapeForm = shapeEncoders[7*rotation + (shape - 1)];
 
-    if((shapeForm & 0b00000000001) != 0) drawCell(x - CELL_SIZE    , y - CELL_SIZE    , CELL_SIZE, CELL_SIZE, color);
-    if((shapeForm & 0b00000000010) != 0) drawCell(x                , y - CELL_SIZE    , CELL_SIZE, CELL_SIZE, color);
-    if((shapeForm & 0b00000000100) != 0) drawCell(x + CELL_SIZE    , y - CELL_SIZE    , CELL_SIZE, CELL_SIZE, color);
-
-    if((shapeForm & 0b00000001000) != 0) drawCell(x - CELL_SIZE    , y                , CELL_SIZE, CELL_SIZE, color);
-    if((shapeForm & 0b00000010000) != 0) drawCell(x                , y                , CELL_SIZE, CELL_SIZE, color);
-    if((shapeForm & 0b00000100000) != 0) drawCell(x + CELL_SIZE    , y                , CELL_SIZE, CELL_SIZE, color);
-
-    if((shapeForm & 0b00001000000) != 0) drawCell(x - CELL_SIZE    , y + CELL_SIZE    , CELL_SIZE, CELL_SIZE, color);
-    if((shapeForm & 0b00010000000) != 0) drawCell(x                , y + CELL_SIZE    , CELL_SIZE, CELL_SIZE, color);
-    if((shapeForm & 0b00100000000) != 0) drawCell(x + CELL_SIZE    , y + CELL_SIZE    , CELL_SIZE, CELL_SIZE, color);
-
-    if((shapeForm & 0b01000000000) != 0) drawCell(x + CELL_SIZE * 2, y                , CELL_SIZE, CELL_SIZE, color);
-    if((shapeForm & 0b10000000000) != 0) drawCell(x                , y + CELL_SIZE * 2, CELL_SIZE, CELL_SIZE, color);
+    draw_encoded(x,y,shapeForm,color, CELL_SIZE);
 }
 
 void randomizeCell(Cell* cell){
@@ -518,6 +556,35 @@ int placeTimer = 0;
 
 int rows_to_clear[4] = {0};
 int n_rows_to_clear = 0;
+int score = 0;
+
+#define MAX_DIGITS 6
+
+int digits[MAX_DIGITS];
+int counter_num_digits;
+
+void draw_counter(int x, int y, int number, double size){
+    if(number == 0) {
+        for(int i = 0; i < MAX_DIGITS; i++){
+            draw_encoded(x+((size*3 + size*0.2)*i) - size*0.2 * 2,y,counterShapes[number],0xFFFFFFFF, size);
+        }
+    };
+    if(number > pow(10,MAX_DIGITS)-1) number = pow(10,MAX_DIGITS)-1;
+    counter_num_digits = 0;
+    while(number / 10 != 0){
+        digits[counter_num_digits++] = number % 10;
+        number /= 10;
+    }
+    digits[counter_num_digits++] = number % 10;
+    int to_fill = MAX_DIGITS - counter_num_digits;
+    for(int i = counter_num_digits; i < MAX_DIGITS; i++){
+        digits[i] = 0;
+    }
+
+    for(int i = 0; i < MAX_DIGITS; i++){
+        draw_encoded(x+((size*3 + size*0.2)*i) - size*0.2 * 2,y,counterShapes[digits[MAX_DIGITS-1-i]],0xFFFFFF00 | (i * 30 + 10), size);
+    }
+}
 
 void clear_rows(){
     //find how many and what rows to clear
@@ -537,6 +604,8 @@ void clear_rows(){
         memcpy(PLAYFIELD+PLAYFIELD_COLS,PLAYFIELD,PLAYFIELD_COLS*row);
         memset(PLAYFIELD,0,PLAYFIELD_COLS);
     }
+    if(n_rows_to_clear == 4) score += 800;
+    else score += n_rows_to_clear * 100;
 
 }
 
@@ -586,6 +655,7 @@ void game(double deltaTime){
         for(int i = 0; i < PLAYFIELD_COLS * PLAYFIELD_ROWS; i++){
             PLAYFIELD[i] = 0;
         }
+        score = 0;
         outOfBounds = false;
     }
 
@@ -612,6 +682,9 @@ void game(double deltaTime){
             update_block();
         }while(test_y != 0);
     }
+
+    fallSpeed = keys['S'] ? DEFAULT_FALL_SPEED * 8 : DEFAULT_FALL_SPEED;
+
     // if(just_pressed_keys['1']) shape = (shape + 1) % 7;
     // if(just_pressed_keys['2']) shape = (shape - 1) > 0 ? (shape - 1) : 7 + (shape - 1);
 
@@ -649,6 +722,16 @@ void game(double deltaTime){
     double offX = ((double)bitmapWidth / 2 - (double)PLAYFIELD_COLS * CELL_SIZE / 2 + test_x * CELL_SIZE) - (double)CELL_SIZE / 2;
     double offY = ((double)bitmapHeight / 2 - (double)PLAYFIELD_ROWS * CELL_SIZE / 2 + test_y * CELL_SIZE) - (double)CELL_SIZE / 2;
     drawShape(offX,offY, shape, rotation, (1.0 - (double)placeTimer/(MAX_PLACETIMER+1)) * 255);
+
+    int number_of_counters = MAX_DIGITS;
+    double scoreBoardCell = (double)CELL_SIZE * 0.3;
+    double scoreBoardWidth = scoreBoardCell*(number_of_counters*3 + 2);
+    double scoreBoardHeight = scoreBoardCell*(3+2);
+    double scoreBoardX = ((double)bitmapWidth/2 + (double)(PLAYFIELD_COLS+1) * (double)CELL_SIZE / 2.0) + ((double)CELL_SIZE)/16.0;
+    double scoreBoardY = (double)bitmapHeight/2 - scoreBoardHeight / 2;
+
+    drawRectangle(scoreBoardX,scoreBoardY, scoreBoardWidth,scoreBoardHeight, 0xFF181818);
+    draw_counter(scoreBoardX+scoreBoardCell*2,scoreBoardY + scoreBoardHeight/2 - scoreBoardCell/2, score, scoreBoardCell);
 }
 
 int main() {
