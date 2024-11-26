@@ -392,24 +392,13 @@ uint32_t multiply_rgb(uint32_t argb, uint8_t multiplier) {
     return (alpha << 24) | (red << 16) | (green << 8) | blue;
 }
 
-bool checkCellLeftWall(int x){
-    return x < 0;
-}
-
-bool checkCellRightWall(int x){
-    return x >=PLAYFIELD_COLS;
-}
-
-bool checkCellVerWall(int y){
-    return y >= PLAYFIELD_ROWS;
-}
-
 bool checkCell(int x, int y, int moveDir){
 
     bool wall = false;
-    if(moveDir == 0) wall = checkCellVerWall(y);
-    if(moveDir == 1) wall = checkCellRightWall(x);
-    if(moveDir == 2) wall = checkCellLeftWall(x);
+    if(moveDir == 0) wall = y >= PLAYFIELD_ROWS;
+    else if(moveDir == 1) wall = x >=PLAYFIELD_COLS;
+    else if(moveDir == 2) wall = x < 0;
+    else return false;
 
     return wall || (PLAYFIELD[y*PLAYFIELD_COLS + x] != 0);
 }
