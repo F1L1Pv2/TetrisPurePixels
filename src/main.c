@@ -13,6 +13,7 @@
 #include <stdbool.h>
 #include <math.h>
 #include "time.h"
+#include <string.h>
 
 
 #ifndef DEBUG
@@ -515,8 +516,38 @@ float tick = 0.0;
 #define MAX_PLACETIMER 2
 int placeTimer = 0;
 
+int rows_to_clear[4] = {0};
+int n_rows_to_clear = 0;
+
+void clear_rows(){
+    //find how many and what rows to clear
+    n_rows_to_clear = 0;
+    for(int i = 0; i < PLAYFIELD_ROWS; i++){
+        int filled = 0;
+        for(int j = 0; j < PLAYFIELD_COLS; j++){
+            if(PLAYFIELD[i*PLAYFIELD_COLS + j] != 0) filled++;
+        }
+        if(filled == PLAYFIELD_COLS){
+            rows_to_clear[n_rows_to_clear++] = i;
+        }
+    }
+    if(n_rows_to_clear == 0) return;
+    for(int i = 0; i < n_rows_to_clear; i++){
+        int row = rows_to_clear[i];
+        memcpy(PLAYFIELD+PLAYFIELD_COLS,PLAYFIELD,PLAYFIELD_COLS*row);
+        memset(PLAYFIELD,0,PLAYFIELD_COLS);
+    }
+
+}
+
 void update_block(){
     if(placeTimer == 2) {
+        if(!shapeColide(test_x,test_y,shape,rotation,0)){
+            test_y++;
+            placeTimer = 0;
+            return;
+        }
+
         placeShape(test_x,test_y,shape,rotation);
         test_x = PLAYFIELD_COLS / 2;
         test_y = 0;
@@ -524,6 +555,7 @@ void update_block(){
         shape = (rand() % (SHAPES_COUNT - 1) ) + 1;
 
         placeTimer = 0;
+        clear_rows();
         return;
     }
 
@@ -580,8 +612,8 @@ void game(double deltaTime){
             update_block();
         }while(test_y != 0);
     }
-    if(just_pressed_keys['1']) shape = (shape + 1) % 7;
-    if(just_pressed_keys['2']) shape = (shape - 1) > 0 ? (shape - 1) : 7 + (shape - 1);
+    // if(just_pressed_keys['1']) shape = (shape + 1) % 7;
+    // if(just_pressed_keys['2']) shape = (shape - 1) > 0 ? (shape - 1) : 7 + (shape - 1);
 
     tick += deltaTime * fallSpeed;
 
