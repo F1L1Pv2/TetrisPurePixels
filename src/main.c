@@ -183,6 +183,22 @@ const uint16_t counterShapes[] = {
     0b00001010111,
     0b00111111111,
     0b00100111111,
+    0b00000000000, //a
+    0b00000000000, //b
+    0b00000000000, //c
+    0b00000000000, //d
+    0b00000000000, //e
+    0b00001011111, //f
+    0b00000000000, //g
+    0b00000000000, //h
+    0b00111010111, //i
+    0b00000000000, //j
+    0b00000000000, //k
+    0b00111001001, //l
+    0b00000000000, //m
+    0b00000000000, //n
+    0b00000000000, //o
+    0b00001111111, //p
 };
 
 const uint32_t colors[] = {
@@ -732,6 +748,14 @@ void game(double deltaTime){
 
     drawRectangle(scoreBoardX,scoreBoardY, scoreBoardWidth,scoreBoardHeight, 0xFF181818);
     draw_counter(scoreBoardX+scoreBoardCell*2,scoreBoardY + scoreBoardHeight/2 - scoreBoardCell/2, score, scoreBoardCell);
+
+    double text_cell_size = (double)CELL_SIZE / 3;
+
+    draw_encoded(text_cell_size*(1.5+3 * 0),bitmapHeight-text_cell_size*8,counterShapes['F' - 'A' + 10],0xFF404040,text_cell_size);
+    draw_encoded(text_cell_size*(1.5+3 * 1),bitmapHeight-text_cell_size*8,counterShapes[1],0xFF404040,text_cell_size);
+    draw_encoded(text_cell_size*(1.5+3 * 2),bitmapHeight-text_cell_size*8,counterShapes['L' - 'A' + 10],0xFF404040,text_cell_size);
+    draw_encoded(text_cell_size*(1.5+3 * 3),bitmapHeight-text_cell_size*8,counterShapes[1],0xFF404040,text_cell_size);
+    draw_encoded(text_cell_size*(1.5+3 * 4),bitmapHeight-text_cell_size*8,counterShapes['P' - 'A' + 10],0xFF404040,text_cell_size);
 }
 
 int main() {
