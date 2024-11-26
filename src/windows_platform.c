@@ -237,7 +237,7 @@ void platform_init(double* deltaTimeIN, double* TimeIN){
     QueryPerformanceCounter(&lastPerfCounter);
 }
 
-bool platform_events(){
+bool platform_pre_game_update(){
     QueryPerformanceCounter(&perfCounter);
     *deltaTime = (double)(perfCounter.QuadPart - lastPerfCounter.QuadPart) / frequency;
     lastPerfCounter = perfCounter;
@@ -245,7 +245,7 @@ bool platform_events(){
     return true;
 }
 
-void platform_update(){
+void platform_post_game_update(){
     HDC hdc = GetDC(window);
     BitBlt(hdc, 0, 0, bitmapWidth, bitmapHeight, memDC, 0, 0, SRCCOPY);
     ReleaseDC(window, hdc);
