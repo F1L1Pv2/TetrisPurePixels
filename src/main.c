@@ -39,12 +39,12 @@ int WinMain(
 
 const uint64_t FPS = 120;
 
-#define CELL_SIZE 25
+#define CELL_SIZE (platform_screen_width()/25)
 #define NUMBER_OF_CELLS 1000
-#define MAX_ACC 400.0
+#define MAX_ACC (platform_screen_width()*0.75)
 #define PLAYFIELD_COLS 10
 #define PLAYFIELD_ROWS 16
-const double gravity = -9.8 * 10.0;
+#define gravity (-9.8 * platform_screen_height()/40)
 #define DEFAULT_FALL_SPEED 2.0
 double fallSpeed = DEFAULT_FALL_SPEED;
 bool outOfBounds = false;
@@ -72,8 +72,6 @@ typedef struct{
 
 Cell cells[NUMBER_OF_CELLS] = {0};
 uint8_t PLAYFIELD[PLAYFIELD_COLS * PLAYFIELD_ROWS] = {0};
-
-
 
 const uint16_t shapeEncoders[] = {
 
@@ -489,9 +487,6 @@ void game(double deltaTime){
     }
 
     fallSpeed = platform_move_down() ? DEFAULT_FALL_SPEED * 8 : DEFAULT_FALL_SPEED;
-
-    // if(just_pressed_keys['1']) shape = (shape + 1) % 7;
-    // if(just_pressed_keys['2']) shape = (shape - 1) > 0 ? (shape - 1) : 7 + (shape - 1);
 
     tick += deltaTime * fallSpeed;
 
