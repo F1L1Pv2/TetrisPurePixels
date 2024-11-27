@@ -290,7 +290,7 @@ bool platform_move_left(){
 }
 
 bool platform_move_down(){
-    return just_pressed_keys['S'];
+    return keys['S'];
 }
 
 bool platform_move_jump_down(){
